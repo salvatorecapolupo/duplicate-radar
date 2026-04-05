@@ -34,32 +34,68 @@
                 $row.addClass('dr-row-fading');
                 setTimeout(() => $row.remove(), 500);
             } else {
-                alert(cfg.labels.error);
+                alert(res.data || cfg.labels.error);
             }
         });
     });
 
-    // Loop di scansione (Logica simile alla precedente ma pulita)
+    // Avvio scansione
     $('#dr-start').on('click', function() {
+        // Blocca il bottone per evitare click multipli
+        $(this).prop('disabled', true).text('Scansione in corso...');
+        
         $('#dr-tbody').empty();
         $('#dr-progress-wrap').show();
+        $('#dr-status').text('Inizializzazione...');
+        $('#dr-bar').css('width', '0%');
+        
         scan(0);
     });
 
     function scan(offset) {
+        // Raccoglie tutti i parametri dalla UI
+        var isTitle   = $('#dr-check-title').is(':checked') ? 1 : 0;
+        var isSlug    = $('#dr-check-slug').is(':checked') ? 1 : 0;
+        var isContent = $('#dr-check-content').is(':checked') ? 1 : 0;
+        var threshold = $('#dr-threshold').val();
+
         $.post(cfg.ajaxUrl, {
             action: 'dr_scan',
             nonce: cfg.nonce,
             offset: offset,
-            check_title: $('#dr-check-title').is(':checked') ? 1 : 0
+            check_title: isTitle,
+            check_slug: isSlug,
+            check_content: isContent,
+            threshold: threshold
         }, function(res) {
             if (res.success) {
+                // Stampa eventuali duplicati trovati
                 res.data.matches.forEach(appendMatch);
-                var progress = Math.round(((offset + 1) / res.data.total) * 100);
+                
+                // Gestione e aggiornamento della Barra di Stato e Percentuale
+                var total = res.data.total;
+                var current = offset + 1;
+                var progress = total > 0 ? Math.round((current / total) * 100) : 100;
+                
+                // Aggiornamento grafico
                 $('#dr-bar').css('width', progress + '%');
-                if (offset + 1 < res.data.total) scan(offset + 1);
-                else $('#dr-status').text(cfg.labels.done);
+                $('#dr-status').text(`Analisi post ${current} di ${total} (${progress}%)...`);
+
+                // Loop ricorsivo o fine
+                if (current < total) {
+                    scan(current);
+                } else {
+                    $('#dr-status').text(cfg.labels.done + ` (100%)`);
+                    $('#dr-start').prop('disabled', false).text('Avvia nuova scansione');
+                }
+            } else {
+                $('#dr-status').text(res.data || cfg.labels.error);
+                $('#dr-start').prop('disabled', false).text('Riprova');
             }
+        }).fail(function() {
+            // Gestione del timeout o errore server 500
+            $('#dr-status').text("Errore di rete o server sovraccarico. Riduci i criteri di ricerca.");
+            $('#dr-start').prop('disabled', false).text('Riprova');
         });
     }
 })(jQuery);
