@@ -2,11 +2,11 @@
 Contributors: salvatorecapolupo
 Tags: duplicates, cleanup, posts, administration, batch
 Requires at least: 5.8
-Tested up to: 6.4
+Tested up to: 6.9
 Requires PHP: 7.4
 Stable tag: 1.1.0
-License: MIT License
-License URI: https://opensource.org/licenses/MIT
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Batch scanning for duplicate WordPress posts — lightweight, secure, no external dependencies.
 
