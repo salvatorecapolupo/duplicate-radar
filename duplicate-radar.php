@@ -8,7 +8,7 @@
  * Requires PHP:      7.4
  * Author:            Salvatore Capolupo
  * License:           MIT License
- * Text Domain:       duplicate-radar
+ * Text Domain:       duplicate-radar-main
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -32,8 +32,8 @@ class Duplicate_Radar {
 
 	public function register_menu() {
 		add_management_page(
-			__( 'Duplicate Radar', 'duplicate-radar' ),
-			__( 'Duplicate Radar', 'duplicate-radar' ),
+			esc_html__( 'Duplicate Radar', 'duplicate-radar-main' ),
+			esc_html__( 'Duplicate Radar', 'duplicate-radar-main' ),
 			'manage_options',
 			'duplicate-radar',
 			[ $this, 'render_page' ]
@@ -50,9 +50,9 @@ class Duplicate_Radar {
 			'nonce'   => wp_create_nonce( self::NONCE_KEY ),
 			'editUrl' => admin_url( 'post.php?action=edit&post=' ),
 			'labels'  => [
-				'scanning' => __( 'Analisi in corso...', 'duplicate-radar' ),
-				'done'     => __( 'Scansione completata.', 'duplicate-radar' ),
-				'error'    => __( 'Errore durante l\'operazione.', 'duplicate-radar' )
+				'scanning' => esc_html__( 'Analisi in corso...', 'duplicate-radar-main' ),
+				'done'     => esc_html__( 'Scansione completata.', 'duplicate-radar-main' ),
+				'error'    => esc_html__( 'Errore durante l\'operazione.', 'duplicate-radar-main' )
 			]
 		]);
 	}
@@ -62,15 +62,15 @@ class Duplicate_Radar {
 		<div class="wrap" id="dr-wrap">
 			<h1>📡 Duplicate Radar</h1>
 			<div class="card" style="max-width:800px;">
-				<h3><?php _e( 'Criteri di rilevamento', 'duplicate-radar' ); ?></h3>
-				<label><input type="checkbox" id="dr-check-title" checked> <?php _e( 'Titolo identico', 'duplicate-radar' ); ?></label><br>
-				<label><input type="checkbox" id="dr-check-slug" checked> <?php _e( 'Permalink simile', 'duplicate-radar' ); ?></label><br>
+				<h3><?php esc_html_e( 'Criteri di rilevamento', 'duplicate-radar-main' ); ?></h3>
+				<label><input type="checkbox" id="dr-check-title" checked> <?php esc_html_e( 'Titolo identico', 'duplicate-radar-main' ); ?></label><br>
+				<label><input type="checkbox" id="dr-check-slug" checked> <?php esc_html_e( 'Permalink simile', 'duplicate-radar-main' ); ?></label><br>
 				<label>
-					<input type="checkbox" id="dr-check-content"> <?php _e( 'Somiglianza testo ≥', 'duplicate-radar' ); ?>
+					<input type="checkbox" id="dr-check-content"> <?php esc_html_e( 'Somiglianza testo ≥', 'duplicate-radar-main' ); ?>
 					<input type="number" id="dr-threshold" value="80" min="10" max="100" style="width:50px;"> %
 				</label>
 				<hr>
-				<button id="dr-start" class="button button-primary"><?php _e( 'Avvia scansione', 'duplicate-radar' ); ?></button>
+				<button id="dr-start" class="button button-primary"><?php esc_html_e( 'Avvia scansione', 'duplicate-radar-main' ); ?></button>
 			</div>
 
 			<div id="dr-progress-wrap" style="display:none; margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccd0d4; border-radius: 4px;">
@@ -83,9 +83,9 @@ class Duplicate_Radar {
 			<table class="wp-list-table widefat fixed striped" id="dr-table" style="display:none;">
 				<thead>
 					<tr>
-						<th><?php _e( 'Post Originale', 'duplicate-radar' ); ?></th>
-						<th><?php _e( 'Sospetto Duplicato', 'duplicate-radar' ); ?></th>
-						<th><?php _e( 'Motivo', 'duplicate-radar' ); ?></th>
+						<th><?php esc_html_e( 'Post Originale', 'duplicate-radar-main' ); ?></th>
+						<th><?php esc_html_e( 'Sospetto Duplicato', 'duplicate-radar-main' ); ?></th>
+						<th><?php esc_html_e( 'Motivo', 'duplicate-radar-main' ); ?></th>
 					</tr>
 				</thead>
 				<tbody id="dr-tbody"></tbody>
@@ -100,50 +100,58 @@ class Duplicate_Radar {
 
 	public function handle_scan() {
 		check_ajax_referer( self::NONCE_KEY, 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permessi insufficienti.' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Permessi insufficienti.' );
+        }
 
 		global $wpdb;
         
-        // 1. Sanitizzazione input
-		$offset        = max( 0, intval( $_POST['offset'] ?? 0 ) );
-        $check_title   = filter_var( $_POST['check_title'] ?? false, FILTER_VALIDATE_BOOLEAN );
-        $check_slug    = filter_var( $_POST['check_slug'] ?? false, FILTER_VALIDATE_BOOLEAN );
-        $check_content = filter_var( $_POST['check_content'] ?? false, FILTER_VALIDATE_BOOLEAN );
-        $threshold     = max( 10, min( 100, intval( $_POST['threshold'] ?? 80 ) ) );
+        // Sanitizzazione input con wp_unslash
+		$offset        = max( 0, intval( wp_unslash( $_POST['offset'] ?? 0 ) ) );
+        $check_title   = filter_var( wp_unslash( $_POST['check_title'] ?? false ), FILTER_VALIDATE_BOOLEAN );
+        $check_slug    = filter_var( wp_unslash( $_POST['check_slug'] ?? false ), FILTER_VALIDATE_BOOLEAN );
+        $check_content = filter_var( wp_unslash( $_POST['check_content'] ?? false ), FILTER_VALIDATE_BOOLEAN );
+        $threshold     = max( 10, min( 100, intval( wp_unslash( $_POST['threshold'] ?? 80 ) ) ) );
 		
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 		$total = (int) $wpdb->get_var( "SELECT COUNT(ID) FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type = 'post'" );
         
-        // Ottimizzazione DB: Estraiamo solo le colonne richieste
-        $fields = ['ID', 'post_title']; // Titolo serve sempre per l'UI
-        if ( $check_slug ) $fields[] = 'post_name';
-        if ( $check_content ) $fields[] = 'post_content';
-        $fields_sql = implode( ', ', $fields );
+        $fields = ['ID', 'post_title'];
+        if ( $check_slug ) {
+            $fields[] = 'post_name';
+        }
+        if ( $check_content ) {
+            $fields[] = 'post_content';
+        }
+        $fields_sql = esc_sql( implode( ', ', $fields ) );
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$target = $wpdb->get_row( $wpdb->prepare( "SELECT {$fields_sql} FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type = 'post' LIMIT %d, 1", $offset ) );
 
-		if ( ! $target ) wp_send_json_success( ['matches' => [], 'total' => $total] );
+		if ( ! $target ) {
+            wp_send_json_success( ['matches' => [], 'total' => $total] );
+        }
 
 		$matches = [];
-        // Anche qui usiamo la query ottimizzata per i candidati
 		$candidates = $wpdb->get_results( $wpdb->prepare( "SELECT {$fields_sql} FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type = 'post' AND ID > %d", $target->ID ) );
+        // phpcs:enable
 
 		foreach ( $candidates as $can ) {
 			$reasons = [];
             
-            // Logica 1: Titolo
 			if ( $check_title && strtolower(trim($target->post_title)) === strtolower(trim($can->post_title)) ) {
                 $reasons[] = 'Titolo';
             }
             
-            // Logica 2: Permalink / Slug
             if ( $check_slug && strtolower(trim($target->post_name)) === strtolower(trim($can->post_name)) ) {
                 $reasons[] = 'Permalink';
             }
 
-            // Logica 3: Contenuto
             if ( $check_content && !empty($target->post_content) && !empty($can->post_content) ) {
-                $t_text = mb_substr( strip_tags( $target->post_content ), 0, self::MAX_TEXT );
-                $c_text = mb_substr( strip_tags( $can->post_content ), 0, self::MAX_TEXT );
+                $t_text = mb_substr( wp_strip_all_tags( $target->post_content ), 0, self::MAX_TEXT );
+                $c_text = mb_substr( wp_strip_all_tags( $can->post_content ), 0, self::MAX_TEXT );
                 
                 similar_text( $t_text, $c_text, $perc );
                 if ( $perc >= $threshold ) {
@@ -152,7 +160,6 @@ class Duplicate_Radar {
             }
 			
 			if ( !empty($reasons) ) {
-                // XSS Prevention: esc_html su tutti i dati inviati al DOM
 				$matches[] = [
 					'p1' => [ 'id' => $target->ID, 'title' => esc_html( $target->post_title ?: 'Senza Titolo' ) ],
 					'p2' => [ 'id' => $can->ID, 'title' => esc_html( $can->post_title ?: 'Senza Titolo' ) ],
@@ -165,9 +172,16 @@ class Duplicate_Radar {
 
 	public function handle_trash() {
 		check_ajax_referer( self::NONCE_KEY, 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error();
+		if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error();
+        }
 
-		$post_id = intval( $_POST['post_id'] );
+        // Verifica validazione array post_id
+        if ( ! isset( $_POST['post_id'] ) ) {
+            wp_send_json_error( 'ID post non fornito.' );
+        }
+
+		$post_id = intval( wp_unslash( $_POST['post_id'] ) );
 		if ( wp_trash_post( $post_id ) ) {
 			wp_send_json_success();
 		}
